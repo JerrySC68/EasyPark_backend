@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { poolPromise } = require('../db');
 
-router.post('/garajes', async (req, res) => {
+router.post('/  ', async (req, res) => {
     const {
         dueno_id, direccion, latitud, longitud,
         horario, estado, disponibilidad, anchura, altura
