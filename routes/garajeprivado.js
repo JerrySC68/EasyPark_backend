@@ -1,61 +1,93 @@
 const express = require('express');
 const router = express.Router();
 const { poolPromise } = require('../db');
+const verificarToken = require('../authMiddleware');
 
-router.post('/  ', async (req, res) => {
-    const {
-        dueno_id, direccion, latitud, longitud,
-        horario, estado, disponibilidad, anchura, altura
-    } = req.body;
+router.post('/guardar', verificarToken, async (req, res) => {
+  const {
+    direccion,
+    latitud,
+    longitud,
+    disponibilidad,
+    horario,
+    fecha_inscripcion,
+    anchura,
+    altura,
+    vehiculos  // Array de objetos: { tipo_vehiculo, tarifa_hora }
+  } = req.body;
+  
+  try {
+   
+    const pool = await poolPromise;
 
-    try {
-        const pool = await poolPromise;
-        await pool.request()
-            .input('dueno_id', dueno_id)
-            .input('direccion', direccion)
-            .input('latitud', latitud)
-            .input('longitud', longitud)
-            .input('horario', horario)
-            .input('estado', estado)
-            .input('disponibilidad', disponibilidad)
-            .input('anchura', anchura)
-            .input('altura', altura)
-            .query(`
-                INSERT INTO GarajesPrivados (
-                    dueno_id, direccion, latitud, longitud,
-                    horario, estado, disponibilidad, anchura, altura
-                ) VALUES (
-                    @dueno_id, @direccion, @latitud, @longitud,
-                    @horario, @estado, @disponibilidad, @anchura, @altura
-                );
-            `);
+    // Buscar el ID del usuario autenticado por email
+    const resultUser = await pool.request()
+      .input('email', req.usuario.email)
+      .query(`SELECT idUsuario FROM Usuarios WHERE email = @email`);
 
-        res.status(201).json({ message: 'Garaje registrado correctamente' });
-    } catch (err) {
-        console.error('❌ Error al insertar garaje:', err.message);
-        res.status(500).json({ error: 'Error al registrar garaje' });
+    if (resultUser.recordset.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado en base de datos' });
     }
-});
 
-router.post('/tarifas-garaje', async (req, res) => {
-    const { idGaraje, tipo_vehiculo, tarifa_hora } = req.body;
+    const idUsuario = resultUser.recordset[0].idUsuario;
 
-    try {
-        const pool = await poolPromise;
-        await pool.request()
-            .input('idGaraje', idGaraje)
-            .input('tipo_vehiculo', tipo_vehiculo)
-            .input('tarifa_hora', tarifa_hora)
-            .query(`
-                INSERT INTO TarifasGaraje (idGaraje, tipo_vehiculo, tarifa_hora)
-                VALUES (@idGaraje, @tipo_vehiculo, @tarifa_hora);
-            `);
+    // Insertar el estacionamiento
+    const resultEst = await pool.request()
+      .input('dueno_id', idUsuario)
+      .input('direccion', direccion)
+      .input('latitud', latitud)
+      .input('longitud', longitud)
+      .input('disponibilidad', disponibilidad)
+      .input('horario', horario)
+      .input('fecha_inscripcion', fecha_inscripcion)
+      .input('anchura', anchura)
+      .input('altura', altura)
+      .query(`
+        INSERT INTO GarajesPrivados (
+          dueno_id, direccion, latitud, longitud,
+          disponibilidad, horario, fecha_inscripcion, anchura, altura
+        )
+        OUTPUT INSERTED.idEstacionamiento
+        VALUES (
+          @dueno_id, @direccion, @latitud, @longitud,
+          @disponibilidad, @horario, @fecha_inscripcion, @anchura, @altura
+        );
+      `);
 
-        res.status(201).json({ message: 'Tarifa de garaje registrada correctamente' });
-    } catch (err) {
-        console.error('❌ Error al insertar tarifa de garaje:', err.message);
-        res.status(500).json({ error: 'Error al registrar tarifa de garaje' });
+    const idGaraje = resultEst.recordset[0].idGaraje;
+
+    // Insertar las tarifas asociadas
+    const tarifasInsertadas = [];
+
+    for (const tarifa of vehiculos) {
+      console.log('Tarifa:', tarifa); // Debugging line
+      await pool.request()
+        .input('idGaraje', idGaraje)
+        .input('tipo_vehiculo', tarifa.tipo_vehiculo)
+        .input('tarifa_hora', tarifa.tarifa_hora)
+        .query(`
+          INSERT INTO TarifasEstacionamiento (idGaraje, tipo_vehiculo, tarifa_hora)
+          VALUES (@idGaraje, @tipo_vehiculo, @tarifa_hora);
+        `);
+
+      tarifasInsertadas.push({
+        tipo_vehiculo: tarifa.tipo_vehiculo,
+        tarifa_hora: tarifa.tarifa_hora
+      });
     }
+
+    res.status(201).json({
+      message: 'Estacionamiento y tarifas registrados correctamente',
+      idEstacionamiento,
+      nombre,
+      direccion,
+      tarifas: tarifasInsertadas
+    });
+
+  } catch (err) {
+    console.error('❌ Error al registrar estacionamiento con tarifas:', err.message);
+    res.status(500).json({ error: 'Error al registrar estacionamiento y tarifas' });
+  }
 });
 
 module.exports = router;

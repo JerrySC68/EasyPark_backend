@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
 app.use('/api/usuariods', require('./routes/usuarios'));
 
 app.use('/api/estacionamientos',  require('./routes/estacionamientos'));
-app.use('/api/garajes', require('./routes/usuarios'));
+app.use('/api/garajes', require('./routes/garajeprivado'));
 
 
 app.listen(PORT, () => {
