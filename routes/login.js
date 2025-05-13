@@ -1,18 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const admin = require('../config/firebaseConfig'); // donde configuras firebase-admin
+const { poolPromise } = require('../db');
+const verificarToken = require('../authMiddleware');
 
-router.post('/verificar-token', async (req, res) => {
-  const { token } = req.body;
+
+
+router.get('/email/:email/password/:password', verificarToken, async (req, res) => {
+  const { email, password } = req.params;
 
   try {
-    const decoded = await admin.auth().verifyIdToken(token);
-    res.status(200).json({ uid: decoded.uid, email: decoded.email });
+    const result = await sql.query`SELECT * FROM dbo.Usuarios WHERE email = ${email} AND password = ${password}`;
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado o contraseña incorrecta' });
+    }
+
+    res.json(result.recordset[0]);
   } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
+    console.error('Error al consultar usuario:', error);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
-
 
 
 module.exports = router;
