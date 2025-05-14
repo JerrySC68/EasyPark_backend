@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
 });
 
 // Importar rutas de usuarios
-app.use('/api/usuariods', require('./routes/usuarios'));
+app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/login', require('./routes/login'));
 app.use('/api/registro', require('./routes/usuarios'));
 app.use('/api/estacionamientos',  require('./routes/estacionamientos'));

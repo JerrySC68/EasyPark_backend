@@ -37,12 +37,46 @@ router.post("/registrar", async (req, res) => {
       .input("tipo_usuarios", tipo_usuarios)
       .input("telefono", telefono)
       .query(`INSERT INTO Usuarios ( nombre, email, password, tipo_usuarios, telefono, fecha_registro)
-              VALUES (@uid, @nombre, @email, @password, @tipo_usuarios, @telefono, GETDATE())`);
+              VALUES ( @nombre, @email, @password, @tipo_usuarios, @telefono, GETDATE())`);
 
-    res.status(201).json({ mensaje: "Usuario registrado correctamente", uid });
+    res.status(201).json({ mensaje: "Usuario registrado correctamente" });
   } catch (error) {
     console.error("❌ Error al registrar:", error.message);
     res.status(500).json({ error: "Error al registrar usuario", detalle: error.message });
+  }
+});
+router.get('/pendientes', verificarToken, async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query(`SELECT * FROM Usuarios WHERE tipo_usuarios IN ('adminp', 'propietariop')`);
+    
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('❌ Error al obtener administradores o propietarios:', err.message);
+    res.status(500).json({ error: 'Error al obtener usuarios filtrados' });
+  }
+});
+// Editar el tipo_usuarios de un usuario
+router.put('/:id/tipo', verificarToken, async (req, res) => {
+  const { id } = req.params;
+  const { tipo_usuarios } = req.body;
+
+  if (!tipo_usuarios) {
+    return res.status(400).json({ error: 'El nuevo tipo_usuarios es requerido.' });
+  }
+
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('tipo_usuarios', tipo_usuarios)
+      .input('idUsuario', id)
+      .query('UPDATE Usuarios SET tipo_usuarios = @tipo_usuarios WHERE idUsuario = @idUsuario');
+
+    res.json({ mensaje: 'Tipo de usuario actualizado correctamente.' });
+  } catch (err) {
+    console.error('❌ Error al actualizar tipo de usuario:', err.message);
+    res.status(500).json({ error: 'Error al actualizar el tipo de usuario.' });
   }
 });
 
