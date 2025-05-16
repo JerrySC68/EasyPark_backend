@@ -49,7 +49,7 @@ router.get('/pendientes', verificarToken, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
-      .query(`SELECT * FROM Usuarios WHERE tipo_usuarios IN ('adminp', 'propietariop')`);
+      .query(`SELECT * FROM Usuarios WHERE tipo_usuarios IN ( 'propietariop')`);
     
     res.json(result.recordset);
   } catch (err) {
