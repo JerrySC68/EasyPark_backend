@@ -30,7 +30,7 @@ router.post("/registrar", async (req, res) => {
 
     // 2. Insertar en tu base de datos con UID de Firebase
     const pool = await poolPromise;
-    await pool.request()
+    const result=await pool.request()
       .input("nombre", nombre)
       .input("email", email)
       .input("password", password) // opcional: no es necesario guardar password si ya está en Firebase
@@ -38,8 +38,9 @@ router.post("/registrar", async (req, res) => {
       .input("telefono", telefono)
       .query(`INSERT INTO Usuarios ( nombre, email, password, tipo_usuarios, telefono, fecha_registro)
               VALUES ( @nombre, @email, @password, @tipo_usuarios, @telefono, GETDATE())`);
-
-    res.status(201).json({ mensaje: "Usuario registrado correctamente" });
+    
+    res.status(201).json({ mensaje: 'Usuario registrado con éxito', User:result.recordset[0]});
+  
   } catch (error) {
     console.error("❌ Error al registrar:", error.message);
     res.status(500).json({ error: "Error al registrar usuario", detalle: error.message });
