@@ -92,4 +92,68 @@ router.post('/guardar', verificarToken, async (req, res) => {
   }
 });
 
+
+router.put('/editar/:id', async (req, res) => {
+  const {
+    nombre,
+    direccion,
+    latitud,
+    longitud,
+    disponibilidad,
+    horario,
+    anchura,
+    altura
+  } = req.body;
+
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('idEstacionamiento', req.params.id)
+      .input('nombre',  nombre)
+      .input('direccion',  direccion)
+      .input('latitud',latitud)
+      .input('longitud',  longitud)
+      .input('disponibilidad', disponibilidad)
+      .input('horario', horario)
+      .input('anchura', anchura)
+      .input('altura',  altura)
+      .query(`UPDATE Estacionamientos 
+              SET nombre = @nombre,
+                  direccion = @direccion,
+                  latitud = @latitud,
+                  longitud = @longitud,
+                  disponibilidad = @disponibilidad,
+                  horario = @horario,
+                  anchura = @anchura,
+                  altura = @altura
+              WHERE idEstacionamiento = @idEstacionamiento`);
+
+    res.json({ mensaje: "Estacionamiento actualizado correctamente" });
+  } catch (err) {
+    console.error("❌ Error al actualizar estacionamiento:", err);
+    res.status(500).json({ error: "Error al actualizar estacionamiento" });
+  }
+});
+
+// GET /api/estacionamientos/:id
+router.get('/:id', verificarToken, async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('idEstacionamiento', req.params.id)
+      .query(`SELECT idEstacionamiento, nombre, direccion, latitud, longitud, disponibilidad, horario, fecha_inscripcion, anchura, altura 
+              FROM Estacionamientos 
+              WHERE idEstacionamiento = @idEstacionamiento`);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: 'Estacionamiento no encontrado' });
+    }
+
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("❌ Error al obtener estacionamiento por ID:", err);
+    res.status(500).json({ error: 'Error al obtener estacionamiento' });
+  }
+});
+
 module.exports = router;

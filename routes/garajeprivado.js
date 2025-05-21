@@ -37,6 +37,7 @@ router.post('/guardar', verificarToken, async (req, res) => {
       .input('direccion', direccion)
       .input('latitud', latitud)
       .input('longitud', longitud)
+      .input('estado', estado)
       .input('disponibilidad', disponibilidad)
       .input('horario', horario)
       .input('fecha_inscripcion', fecha_inscripcion)
@@ -44,12 +45,12 @@ router.post('/guardar', verificarToken, async (req, res) => {
       .input('altura', altura)
       .query(`
         INSERT INTO GarajesPrivados (
-          dueno_id, direccion, latitud, longitud,
+          dueno_id, direccion, latitud, longitud,estado,
           disponibilidad, horario, fecha_inscripcion, anchura, altura
         )
         OUTPUT INSERTED.idEstacionamiento
         VALUES (
-          @dueno_id, @direccion, @latitud, @longitud,
+          @dueno_id, @direccion, @latitud, @longitud,@estado,
           @disponibilidad, @horario, @fecha_inscripcion, @anchura, @altura
         );
       `);
@@ -87,6 +88,67 @@ router.post('/guardar', verificarToken, async (req, res) => {
   } catch (err) {
     console.error('❌ Error al registrar estacionamiento con tarifas:', err.message);
     res.status(500).json({ error: 'Error al registrar estacionamiento y tarifas' });
+  }
+});
+
+
+router.put('/editar/:id', async (req, res) => {
+  const {
+    direccion,
+    latitud,
+    longitud,
+    disponibilidad,
+    horario,
+    anchura,
+    altura
+  } = req.body;
+
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('idGaraje',   req.params.id)
+      .input('direccion',  direccion)
+      .input('latitud', latitud)
+      .input('longitud', longitud)
+      .input('disponibilidad',disponibilidad)
+      .input('horario',  horario)
+      .input('anchura',  anchura)
+      .input('altura', altura)
+      .query(`UPDATE GarajesPrivados 
+              SET direccion = @direccion,
+                  latitud = @latitud,
+                  longitud = @longitud,
+                  disponibilidad = @disponibilidad,
+                  horario = @horario,
+                  anchura = @anchura,
+                  altura = @altura
+              WHERE idGaraje = @idGaraje`);
+
+    res.json({ mensaje: "Garaje actualizado correctamente" });
+  } catch (err) {
+    console.error("❌ Error al actualizar garaje:", err);
+    res.status(500).json({ error: "Error al actualizar garaje" });
+  }
+});
+
+// GET /api/garajes/:id
+router.get('/:id', verificarToken, async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('idGaraje', req.params.id)
+      .query(`SELECT idGaraje, direccion, latitud, longitud, estado, disponibilidad, horario, fecha_inscripcion, anchura, altura 
+              FROM GarajesPrivados 
+              WHERE idGaraje = @idGaraje`);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: 'Garaje no encontrado' });
+    }
+
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("❌ Error al obtener garaje por ID:", err);
+    res.status(500).json({ error: 'Error al obtener garaje' });
   }
 });
 
