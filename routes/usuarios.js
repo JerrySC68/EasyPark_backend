@@ -14,6 +14,64 @@ router.get('/', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Error al obtener los usuarios' });
   }
 });
+// GET /api/usuarios/:id
+router.get('/:id', verificarToken, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('idUsuario', id)
+      .query(`SELECT idUsuario, nombre, email, password, telefono FROM Usuarios WHERE idUsuario = @idUsuario`);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+
+    res.json(result.recordset[0]);
+  } catch (err) {
+    console.error("❌ Error al obtener usuario:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+// PUT /api/usuarios/editar/:id
+router.put('/editar/:id', verificarToken, async (req, res) => {
+  const id = parseInt(req.params.id);
+  
+
+  const { nombre, email, password, telefono, uid } = req.body;
+
+if (!uid || !nombre || !email || !password || !telefono) {
+  return res.status(400).json({ error: "Faltan datos obligatorios." });
+}
+
+// 🔐 1. Actualizar en Firebase
+await admin.auth().updateUser(uid, {
+  email,
+  password,
+  displayName: nombre
+});
+
+
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('idUsuario', id)
+      .input('nombre', nombre)
+      .input('email', email)
+      .input('password', password)
+      .input('telefono', telefono)
+      .query(`
+        UPDATE Usuarios 
+        SET nombre = @nombre, email = @email, password = @password, telefono = @telefono 
+        WHERE idUsuario = @idUsuario
+      `);
+
+    res.json({ mensaje: "Usuario actualizado correctamente" });
+  } catch (err) {
+    console.error("❌ Error al actualizar usuario:", err);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
 
 router.post("/registrar", async (req, res) => {
   const { nombre, email, password, tipo_usuarios, telefono } = req.body;
