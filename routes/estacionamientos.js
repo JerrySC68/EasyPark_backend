@@ -93,7 +93,7 @@ router.post('/guardar', verificarToken, async (req, res) => {
 });
 
 
-router.put('/editar/:id', async (req, res) => {
+router.put('/editar/:id', verificarToken, async (req, res) => {
   const {
     nombre,
     direccion,
@@ -102,58 +102,131 @@ router.put('/editar/:id', async (req, res) => {
     disponibilidad,
     horario,
     anchura,
-    altura
+    altura,
+    vehiculos = []
   } = req.body;
+
+  const idEstacionamiento = req.params.id;
 
   try {
     const pool = await poolPromise;
+
+    // Actualizar datos del estacionamiento
     await pool.request()
-      .input('idEstacionamiento', req.params.id)
-      .input('nombre',  nombre)
-      .input('direccion',  direccion)
-      .input('latitud',latitud)
-      .input('longitud',  longitud)
+      .input('idEstacionamiento', idEstacionamiento)
+      .input('nombre', nombre)
+      .input('direccion', direccion)
+      .input('latitud', latitud)
+      .input('longitud', longitud)
       .input('disponibilidad', disponibilidad)
       .input('horario', horario)
       .input('anchura', anchura)
-      .input('altura',  altura)
-      .query(`UPDATE Estacionamientos 
-              SET nombre = @nombre,
-                  direccion = @direccion,
-                  latitud = @latitud,
-                  longitud = @longitud,
-                  disponibilidad = @disponibilidad,
-                  horario = @horario,
-                  anchura = @anchura,
-                  altura = @altura
+      .input('altura', altura)
+      .query(`
+        UPDATE Estacionamientos 
+        SET nombre = @nombre,
+            direccion = @direccion,
+            latitud = @latitud,
+            longitud = @longitud,
+            disponibilidad = @disponibilidad,
+            horario = @horario,
+            anchura = @anchura,
+            altura = @altura
+        WHERE idEstacionamiento = @idEstacionamiento
+      `);
+
+    // Obtener tarifas actuales
+    const tarifasBD = await pool.request()
+      .input('idEstacionamiento', idEstacionamiento)
+      .query(`SELECT idTarifaEst, tipo_vehiculo, tarifa_hora 
+              FROM TarifasEstacionamiento 
               WHERE idEstacionamiento = @idEstacionamiento`);
 
-    res.json({ mensaje: "Estacionamiento actualizado correctamente" });
+    const tarifasActuales = tarifasBD.recordset;
+
+    // Crear índices por tipo para comparar
+    const nuevasTarifasMap = new Map(vehiculos.map(v => [v.tipo_vehiculo, v]));
+    const actualesMap = new Map(tarifasActuales.map(t => [t.tipo_vehiculo, t]));
+
+    // Insertar nuevas tarifas
+    for (const [tipo, nueva] of nuevasTarifasMap) {
+      if (!actualesMap.has(tipo)) {
+        await pool.request()
+          .input('idEstacionamiento', idEstacionamiento)
+          .input('tipo_vehiculo', nueva.tipo_vehiculo)
+          .input('tarifa_hora', nueva.tarifa_hora)
+          .query(`INSERT INTO TarifasEstacionamiento (idEstacionamiento, tipo_vehiculo, tarifa_hora)
+                  VALUES (@idEstacionamiento, @tipo_vehiculo, @tarifa_hora)`);
+      } else if (actualesMap.get(tipo).tarifa_hora !== nueva.tarifa_hora) {
+        // Actualizar si el precio cambió
+        await pool.request()
+        .input('idTarifaEst', actualesMap.get(tipo).idTarifa)
+        .input('tipo_vehiculo', nueva.tipo_vehiculo)
+        .input('tarifa_hora', nueva.tarifa_hora)
+        .query(`
+          UPDATE TarifasEstacionamiento 
+          SET tipo_vehiculo = @tipo_vehiculo, 
+              tarifa_hora = @tarifa_hora 
+          WHERE idTarifaEst = @idTarifaEst
+        `);
+
+      }
+    }
+
+    // Eliminar las que ya no están
+    for (const [tipo, actual] of actualesMap) {
+      if (!nuevasTarifasMap.has(tipo)) {
+        await pool.request()
+          .input('idTarifaEst', actual.idTarifaEst)
+          .query(`DELETE FROM TarifasEstacionamiento WHERE idTarifaEst = @idTarifaEst`);
+      }
+    }
+
+    res.json({ mensaje: "Estacionamiento y tarifas actualizados correctamente" });
   } catch (err) {
-    console.error("❌ Error al actualizar estacionamiento:", err);
+    console.error("❌ Error al actualizar:", err);
     res.status(500).json({ error: "Error al actualizar estacionamiento" });
   }
 });
+
 
 // GET /api/estacionamientos/:id
 router.get('/:id', verificarToken, async (req, res) => {
   try {
     const pool = await poolPromise;
-    const result = await pool.request()
+
+    const resultEst = await pool.request()
       .input('idEstacionamiento', req.params.id)
-      .query(`SELECT idEstacionamiento, nombre, direccion, latitud, longitud, disponibilidad, horario, fecha_inscripcion, anchura, altura 
+      .query(`SELECT idEstacionamiento, nombre, direccion, latitud, longitud, disponibilidad, horario, anchura, altura ,camposLibres
               FROM Estacionamientos 
               WHERE idEstacionamiento = @idEstacionamiento`);
 
-    if (result.recordset.length === 0) {
+    if (resultEst.recordset.length === 0) {
       return res.status(404).json({ error: 'Estacionamiento no encontrado' });
     }
 
-    res.json(result.recordset[0]);
+    const estacionamiento = resultEst.recordset[0];
+
+    const resultTarifas = await pool.request()
+      .input('idEstacionamiento', req.params.id)
+      .query(`SELECT idTarifaEst, tipo_vehiculo, tarifa_hora 
+              FROM TarifasEstacionamiento 
+              WHERE idEstacionamiento = @idEstacionamiento`);
+  if (resultTarifas.recordset.length > 0) {
+       estacionamiento.vehiculos = resultTarifas.recordset;
+    }
+   
+    
+
+
+
+
+    res.json(estacionamiento);
   } catch (err) {
-    console.error("❌ Error al obtener estacionamiento por ID:", err);
+    console.error("❌ Error al obtener estacionamiento:", err);
     res.status(500).json({ error: 'Error al obtener estacionamiento' });
   }
 });
+
 
 module.exports = router;
