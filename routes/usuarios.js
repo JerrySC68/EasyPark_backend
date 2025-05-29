@@ -4,7 +4,7 @@ const { poolPromise } = require('../db');
 const admin = require("../config/firebaseConfig");
 const verificarToken = require('../authMiddleware');
 
-router.get('/', verificarToken, async (req, res) => {
+router.get('/all', verificarToken, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query('SELECT * FROM Usuarios');
@@ -104,7 +104,8 @@ router.post("/registrar", async (req, res) => {
     res.status(500).json({ error: "Error al registrar usuario", detalle: error.message });
   }
 });
-router.get('/pendientes', verificarToken, async (req, res) => {
+router.get('/', verificarToken, async (req, res) => {
+  
   try {
     const pool = await poolPromise;
     const result = await pool.request()
@@ -112,7 +113,7 @@ router.get('/pendientes', verificarToken, async (req, res) => {
     
     res.json(result.recordset);
   } catch (err) {
-    console.error('❌ Error al obtener administradores o propietarios:', err.message);
+    console.error('❌ Error al obtener  propietarios:', err.message);
     res.status(500).json({ error: 'Error al obtener usuarios filtrados' });
   }
 });

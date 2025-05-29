@@ -104,6 +104,54 @@ router.delete('/eliminar/:tipo/:id', verificarToken, async (req, res) => {
   }
 });
 
+
+router.get('/cercanas', verificarToken, async (req, res) => {
+  try {
+    const pool = await poolPromise; 
+
+    const estacionamientos = await pool.request()
+      .query(`
+        SELECT 
+          idEstacionamiento AS id,
+          nombre,
+          latitud,
+          longitud,
+          'Estacionamiento' AS tipo,
+          direccion,
+          horario,
+          anchura,
+          altura,
+          camposlibres
+        FROM Estacionamientos
+        WHERE camposlibres > 0
+
+      `);
+
+    const garajes = await pool.request()
+      .query(`
+        SELECT 
+          idGaraje AS id,
+          latitud,
+          longitud,
+          'Garaje' AS tipo,
+          direccion,
+          horario,
+          anchura,
+          altura,
+          camposlibres
+        FROM GarajesPrivados
+        WHERE estado = 'disponible' AND camposlibres > 0
+
+      `);
+
+    const propiedades = [...estacionamientos.recordset, ...garajes.recordset];
+    res.json(propiedades);
+  } catch (err) {
+    console.error("❌ Error al consultar propiedades cercanas:", err);
+    res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
 module.exports = router;
 
 

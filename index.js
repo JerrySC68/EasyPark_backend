@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config(); // Cargar variables del .env.example
-
+const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,12 +17,18 @@ app.get('/', (req, res) => {
 // Importar rutas de usuarios
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/login', require('./routes/login'));
-app.use('/api/registro', require('./routes/usuarios'));
+//app.use('/api/registro', require('./routes/usuarios'));
 app.use('/api/estacionamientos',  require('./routes/estacionamientos'));
 app.use('/api/garajes', require('./routes/garajeprivado'));
 app.use('/api/propiedades', require('./routes/propiedades')); 
 
+const interfaces = os.networkInterfaces();
+const localIP = Object.values(interfaces)
+  .flat()
+  .find(i => i.family === 'IPv4' && !i.internal)?.address || 'localhost';
 
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('🚀 Servidor corriendo en:');
+  console.log(`   • http://localhost:${PORT}`);
+  console.log(`   • http://${localIP}:${PORT}`);
 });

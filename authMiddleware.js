@@ -1,7 +1,9 @@
 const admin = require('./config/firebaseConfig');
 
 const verificarToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split('Bearer ')[1];
+  const token =
+  req.headers.authorization?.split('Bearer ')[1] || req.query.token;
+
 
   if (!token) return res.status(401).json({ error: 'Token no proporcionado' });
 
