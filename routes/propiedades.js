@@ -152,6 +152,65 @@ router.get('/cercanas', verificarToken, async (req, res) => {
   }
 });
 
+
+router.post('/reservas', verificarToken, async (req, res) => {
+  try {
+    const {
+      usuario_id,
+      estacionamiento_id,
+      garaje_id,
+      qr_code,
+      estado,
+      fecha_reserva,
+      hora_reserva,
+      penalizacion
+    } = req.body;
+
+    // Validación: solo uno de los dos debe existir
+    if ((estacionamiento_id && garaje_id) || (!estacionamiento_id && !garaje_id)) {
+      return res.status(400).json({ error: "Debe enviar solo estacionamiento_id o garaje_id, no ambos." });
+    }
+
+    const tipo = estacionamiento_id ? "Estacionamiento" : "Garaje";
+
+    const pool = await poolPromise;
+    const request = pool.request();
+
+    request.input("usuario_id", usuario_id);
+    request.input("estacionamiento_id", estacionamiento_id ?? null);
+    request.input("garaje_id", garaje_id ?? null);
+    request.input("qr_code", qr_code);
+    request.input("estado", estado);
+    request.input("fecha_reserva", fecha_reserva);
+    request.input("hora_reserva", hora_reserva);
+    request.input("penalizacion", penalizacion);
+
+    await request.query(`
+      INSERT INTO Reservas (
+        usuario_id, estacionamiento_id, garaje_id,
+        qr_code, estado, fecha_reserva, hora_reserva, penalizacion
+      )
+      VALUES (
+        @usuario_id, @estacionamiento_id, @garaje_id,
+        @qr_code, @estado, @fecha_reserva, @hora_reserva, @penalizacion
+      )
+    `);
+
+    // Retornar los datos que necesitas
+    res.status(201).json({
+      mensaje: "Reserva creada correctamente",
+      qr_code,
+      estado,
+      penalizacion,
+      tipo
+    });
+
+  } catch (error) {
+    console.error("❌ Error al insertar reserva:", error);
+    res.status(500).json({ error: "Error al crear la reserva" });
+  }
+});
+
 module.exports = router;
 
 

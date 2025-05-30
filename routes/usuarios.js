@@ -96,6 +96,8 @@ router.post("/registrar", async (req, res) => {
       .input("telefono", telefono)
       .query(`INSERT INTO Usuarios ( nombre, email, password, tipo_usuarios, telefono, fecha_registro)
               VALUES ( @nombre, @email, @password, @tipo_usuarios, @telefono, GETDATE())`);
+
+    
     
     res.status(201).json({ mensaje: 'Usuario registrado con éxito', User:result.recordset[0]});
   
@@ -139,6 +141,8 @@ router.put('/:id/tipo', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Error al actualizar el tipo de usuario.' });
   }
 });
+
+
 
 
 
