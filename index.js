@@ -18,6 +18,7 @@ app.get('/', (req, res) => {
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/login', require('./routes/login'));
 //app.use('/api/registro', require('./routes/usuarios'));
+app.use('/api/comentarios', require('./routes/comentario'));
 app.use('/api/estacionamientos',  require('./routes/estacionamientos'));
 app.use('/api/garajes', require('./routes/garajeprivado'));
 app.use('/api/propiedades', require('./routes/propiedades')); 
