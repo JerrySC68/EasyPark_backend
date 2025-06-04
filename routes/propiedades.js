@@ -172,14 +172,15 @@ router.post('/reservas', verificarToken, async (req, res) => {
     }
 
     const tipo = estacionamiento_id ? "Estacionamiento" : "Garaje";
-
+    const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const finalQrCode = `${qr_code}-${uniqueSuffix}`;
     const pool = await poolPromise;
     const request = pool.request();
 
     request.input("usuario_id", usuario_id);
     request.input("estacionamiento_id", estacionamiento_id ?? null);
     request.input("garaje_id", garaje_id ?? null);
-    request.input("qr_code", qr_code);
+    request.input("qr_code", finalQrCode);
     request.input("estado", estado);
     request.input("fecha_reserva", fecha_reserva);
     request.input("hora_reserva", hora_reserva);
@@ -431,11 +432,11 @@ router.post("/reservas/completar", verificarToken, async (req, res) => {
     let result;
 
     // Buscar reserva original
-    if (qr_code && idReserva) {
+    if (qr_code ) {
       result = await pool.request()
         .input("qr", qr_code)
         .input("idReserva", idReserva)
-        .query("SELECT * FROM Reservas WHERE CAST(qr_code AS NVARCHAR(MAX)) = @qr AND idReserva = @idReserva");
+        .query("SELECT * FROM Reservas WHERE CAST(qr_code AS NVARCHAR(MAX)) = @qr");
     } else if (idReserva) {
       result = await pool.request()
         .input("idReserva", idReserva)
