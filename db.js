@@ -6,9 +6,9 @@ const config = {
     server: process.env.DB_SERVER,
     database: process.env.DB_NAME,
     options: {
-        encrypt: true, // Requerido para Azure
-        trustServerCertificate: false
-    }
+        encrypt: true,
+        trustServerCertificate: false,
+    },
 };
 
 const poolPromise = new sql.ConnectionPool(config)
@@ -18,10 +18,11 @@ const poolPromise = new sql.ConnectionPool(config)
         return pool;
     })
     .catch(err => {
-        console.error('❌ Error de conexión a Azure SQL', err);
+        console.error('❌ Error de conexión a Azure SQL:', err);
+        throw new Error('Conexión fallida'); // 🔥 fuerza error arriba
     });
 
 module.exports = {
     sql,
-    poolPromise
+    poolPromise,
 };
