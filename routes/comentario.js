@@ -163,6 +163,28 @@ router.get("/propiedad/:id", verificarToken, async (req, res) => {
   }
 });
 
+// GET /api/reservas/puede-comentar/:usuarioId/:tipo/:propiedadId
+router.get("/puede-comentar/:usuarioId/:tipo/:propiedadId", async (req, res) => {
+  const { usuarioId, tipo, propiedadId } = req.params;
+
+  try {
+    const columna = tipo === "garaje" ? "garaje_id" : "estacionamiento_id";
+
+    const result = await pool.query(
+      `SELECT 1 FROM Reservas
+       WHERE usuario_id = @usuarioId AND ${columna} = @propiedadId AND estado = 'completada'`,
+      {
+        usuarioId,
+        propiedadId
+      }
+    );
+
+    res.json({ puedeComentar: result.recordset.length > 0 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al verificar si puede comentar" });
+  }
+});
 
 
 module.exports = router;
