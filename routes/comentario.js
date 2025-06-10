@@ -172,7 +172,7 @@ router.get("/puede-comentar/:usuarioId/:tipo/:propiedadId",verificarToken, async
     const pool = await poolPromise;
     const result = await pool.query(
       `SELECT 1 FROM Reservas
-       WHERE usuario_id = @usuarioId AND ${columna} = @propiedadId AND estado = 'completada'`,
+       WHERE idUsuario = @usuarioId AND ${columna} = @propiedadId AND estado = 'completada'`,
       {
         usuarioId,
         propiedadId
