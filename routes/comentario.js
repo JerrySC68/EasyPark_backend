@@ -117,7 +117,7 @@ router.get("/propiedad/:tipo/:id", verificarToken, async (req, res) => {
   }
 });
 
-router.get("/propiedad/id/:id", verificarToken, async (req, res) => {
+router.get("/propiedad/:id", verificarToken, async (req, res) => {
   const { id } = req.params;
   
   try {
