@@ -126,29 +126,30 @@ router.get("/propiedad/:id", verificarToken, async (req, res) => {
     const query = await pool.request()
       .input("id", id)
       .query(`
-        SELECT 
-          e.idEstacionamiento AS id,
-          e.nombre,
-          e.direccion,
-          e.latitud,
-          e.longitud,
-          'estacionamiento' AS tipo
-        FROM Estacionamientos e
-        WHERE e.idEstacionamiento = @id
+          SELECT 
+            e.idEstacionamiento AS id,
+            CAST(e.nombre AS VARCHAR(MAX)) AS nombre,
+            CAST(e.direccion AS VARCHAR(MAX)) AS direccion,
+            e.latitud,
+            e.longitud,
+            'estacionamiento' AS tipo
+          FROM Estacionamientos e
+          WHERE e.idEstacionamiento = @id
 
-        UNION
+          UNION
 
-        SELECT 
-          g.idGaraje AS id,
-          u.nombre AS nombre,
-          g.direccion,
-          g.latitud,
-          g.longitud,
-          'garaje' AS tipo
-        FROM GarajesPrivados g
-        JOIN Usuarios u ON g.dueno_id = u.idUsuario
-        WHERE g.idGaraje = @id
-      `);
+          SELECT 
+            g.idGaraje AS id,
+            CAST(u.nombre AS VARCHAR(MAX)) AS nombre,
+            CAST(g.direccion AS VARCHAR(MAX)) AS direccion,
+            g.latitud,
+            g.longitud,
+            'garaje' AS tipo
+          FROM GarajesPrivados g
+          JOIN Usuarios u ON g.dueno_id = u.idUsuario
+          WHERE g.idGaraje = @id
+        `);
+    
 
     if (query.recordset.length === 0) {
       return res.status(404).json({ error: "Propiedad no encontrada" });
