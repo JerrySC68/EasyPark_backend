@@ -256,28 +256,32 @@ router.put("/cancelar/:id", verificarToken, async (req, res) => {
   }
 });
 
-router.get("/pendientes", verificarToken, async (req, res) => {
+router.get("/pendientes/:id", verificarToken, async (req, res) => {
+  const { id } = req.params;
   try {
     const pool = await poolPromise;
-    const result = await pool.request().query(`
-      SELECT 
-        r.idReserva,
-        COALESCE(e.latitud, g.latitud) AS latitud,
-        COALESCE(e.longitud, g.longitud) AS longitud,
-        CASE 
-          WHEN r.estacionamiento_id IS NOT NULL THEN 'estacionamiento'
-          ELSE 'garaje'
-        END AS tipo,
-        COALESCE(e.direccion, g.direccion) AS direccion
-      FROM Reservas r
-      LEFT JOIN Estacionamientos e ON r.estacionamiento_id = e.idEstacionamiento
-      LEFT JOIN GarajesPrivados g ON r.garaje_id = g.idGaraje
-      WHERE r.estado = 'pendiente'
-        AND (
-          (r.estacionamiento_id IS NOT NULL AND r.garaje_id IS NULL) OR
-          (r.estacionamiento_id IS NULL AND r.garaje_id IS NOT NULL)
-        )
-    `);
+    const result = await pool.request()
+      .input("propietarioId", id)
+      .query(`
+        SELECT 
+          r.idReserva,
+          COALESCE(e.latitud, g.latitud) AS latitud,
+          COALESCE(e.longitud, g.longitud) AS longitud,
+          CASE 
+            WHEN r.estacionamiento_id IS NOT NULL THEN 'estacionamiento'
+            ELSE 'garaje'
+          END AS tipo,
+          COALESCE(e.direccion, g.direccion) AS direccion
+        FROM Reservas r
+        LEFT JOIN Estacionamientos e ON r.estacionamiento_id = e.idEstacionamiento
+        LEFT JOIN GarajesPrivados g ON r.garaje_id = g.idGaraje
+        WHERE r.estado = 'pendiente'
+          AND (
+            (r.estacionamiento_id IS NOT NULL AND g.idGaraje IS NULL AND e.idPropietario = @propietarioId)
+            OR
+            (r.garaje_id IS NOT NULL AND e.idEstacionamiento IS NULL AND g.dueno_id = @propietarioId)
+          )
+      `);
 
     res.json(result.recordset);
   } catch (error) {
@@ -285,6 +289,7 @@ router.get("/pendientes", verificarToken, async (req, res) => {
     res.status(500).json({ error: "Error trayendo reservas pendientes" });
   }
 });
+
 
 router.put("/aceptar/:id", async (req, res) => {
   const { id } = req.params;
@@ -324,53 +329,75 @@ router.get("/usuario/:id/pendientes",verificarToken, async (req, res) => {
   }
 });
 
-router.get("/pendientes-confirmadas", verificarToken, async (req, res) => {
+router.post("/pendientes-confirmadas", verificarToken, async (req, res) => {
   try {
     const pool = await poolPromise;
+    const propietarioId = req.body.propietarioId;
 
-    const pendientes = await pool.request().query(`
-      SELECT r.*, 
-             COALESCE(e.direccion, g.direccion) AS direccion,
-             COALESCE(e.latitud, g.latitud) AS latitud,
-             COALESCE(e.longitud, g.longitud) AS longitud,
-             u.nombre AS nombreUsuario,
-             CASE 
-               WHEN r.estacionamiento_id IS NOT NULL THEN 'estacionamiento'
-               ELSE 'garaje'
-             END AS tipo
-      FROM Reservas r
-      LEFT JOIN Estacionamientos e ON r.estacionamiento_id = e.idEstacionamiento
-      LEFT JOIN GarajesPrivados g ON r.garaje_id = g.idGaraje
-      JOIN Usuarios u ON r.usuario_id = u.idUsuario
-      WHERE r.estado = 'pendiente'
-    `);
+    if (!propietarioId) {
+      return res.status(400).json({ error: "Falta el propietarioId en el cuerpo de la solicitud" });
+    }
 
-    const confirmadas = await pool.request().query(`
-      SELECT r.*, 
-             COALESCE(e.direccion, g.direccion) AS direccion,
-             COALESCE(e.latitud, g.latitud) AS latitud,
-             COALESCE(e.longitud, g.longitud) AS longitud,
-             u.nombre AS nombreUsuario,
-             CASE 
-               WHEN r.estacionamiento_id IS NOT NULL THEN 'estacionamiento'
-               ELSE 'garaje'
-             END AS tipo
-      FROM Reservas r
-      LEFT JOIN Estacionamientos e ON r.estacionamiento_id = e.idEstacionamiento
-      LEFT JOIN GarajesPrivados g ON r.garaje_id = g.idGaraje
-      JOIN Usuarios u ON r.usuario_id = u.idUsuario
-      WHERE r.estado = 'confirmada'
-    `);
+    const pendientes = await pool.request()
+      .input("propietarioId", propietarioId)
+      .query(`
+        SELECT r.*, 
+               COALESCE(e.direccion, g.direccion) AS direccion,
+               COALESCE(e.latitud, g.latitud) AS latitud,
+               COALESCE(e.longitud, g.longitud) AS longitud,
+               u.nombre AS nombreUsuario,
+               CASE 
+                 WHEN r.estacionamiento_id IS NOT NULL THEN 'estacionamiento'
+                 ELSE 'garaje'
+               END AS tipo
+        FROM Reservas r
+        LEFT JOIN Estacionamientos e ON r.estacionamiento_id = e.idEstacionamiento
+        LEFT JOIN GarajesPrivados g ON r.garaje_id = g.idGaraje
+        JOIN Usuarios u ON r.usuario_id = u.idUsuario
+        WHERE r.estado = 'pendiente'
+          AND (
+            (r.estacionamiento_id IS NOT NULL AND e.idPropietario = @propietarioId)
+            OR 
+            (r.garaje_id IS NOT NULL AND g.dueno_id = @propietarioId)
+          )
+      `);
+
+    const confirmadas = await pool.request()
+      .input("propietarioId", propietarioId)
+      .query(`
+        SELECT r.*, 
+               COALESCE(e.direccion, g.direccion) AS direccion,
+               COALESCE(e.latitud, g.latitud) AS latitud,
+               COALESCE(e.longitud, g.longitud) AS longitud,
+               u.nombre AS nombreUsuario,
+               CASE 
+                 WHEN r.estacionamiento_id IS NOT NULL THEN 'estacionamiento'
+                 ELSE 'garaje'
+               END AS tipo
+        FROM Reservas r
+        LEFT JOIN Estacionamientos e ON r.estacionamiento_id = e.idEstacionamiento
+        LEFT JOIN GarajesPrivados g ON r.garaje_id = g.idGaraje
+        JOIN Usuarios u ON r.usuario_id = u.idUsuario
+        WHERE r.estado = 'confirmada'
+          AND (
+            (r.estacionamiento_id IS NOT NULL AND e.idPropietario = @propietarioId)
+            OR 
+            (r.garaje_id IS NOT NULL AND g.dueno_id = @propietarioId)
+          )
+      `);
 
     res.json({
       pendientes: pendientes.recordset,
       confirmadas: confirmadas.recordset
     });
+
   } catch (error) {
     console.error("Error obteniendo reservas:", error);
     res.status(500).json({ error: "Error al obtener reservas" });
   }
 });
+
+
 
 router.put("/reservas/cancelar/:id", verificarToken, async (req, res) => {
   const { motivo } = req.body;

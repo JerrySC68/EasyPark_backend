@@ -117,5 +117,51 @@ router.get("/propiedad/:tipo/:id", verificarToken, async (req, res) => {
   }
 });
 
+router.get("/propiedad/id/:id", verificarToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const pool = await poolPromise;
+
+    const query = await pool.request()
+      .input("id", id)
+      .query(`
+        SELECT 
+          e.idEstacionamiento AS id,
+          e.nombre,
+          e.direccion,
+          e.latitud,
+          e.longitud,
+          'estacionamiento' AS tipo
+        FROM Estacionamientos e
+        WHERE e.idEstacionamiento = @id
+
+        UNION
+
+        SELECT 
+          g.idGaraje AS id,
+          u.nombre AS nombre,
+          g.direccion,
+          g.latitud,
+          g.longitud,
+          'garaje' AS tipo
+        FROM GarajesPrivados g
+        JOIN Usuarios u ON g.dueno_id = u.idUsuario
+        WHERE g.idGaraje = @id
+      `);
+
+    if (query.recordset.length === 0) {
+      return res.status(404).json({ error: "Propiedad no encontrada" });
+    }
+    
+    res.json(query.recordset[0]); // ✅ Solo 1 resultado con la misma estructura que el array `resultados`
+
+  } catch (error) {
+    console.error("Error al buscar propiedad:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+
 
 module.exports = router;
