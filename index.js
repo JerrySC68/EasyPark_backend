@@ -6,7 +6,12 @@ const os = require('os');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://easypark-3f372.web.app', // dominio del frontend en Firebase
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Ruta de prueba
